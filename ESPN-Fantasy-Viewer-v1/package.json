@@ -1,0 +1,13 @@
+{
+  "name": "espn-fantasy-viewer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Guided browser importer for private ESPN Fantasy Football leagues",
+  "scripts": {
+    "browser": "node browser-import.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}
