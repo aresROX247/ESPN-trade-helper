@@ -65,7 +65,8 @@ npm start
 Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 
-<img width="2348" height="1416" alt="image" src="https://github.com/user-attachments/assets/233165aa-9953-41ef-9e6b-e9147c43ba86" />
+<img width="2391" height="1416" alt="image" src="https://github.com/user-attachments/assets/aaa2c2d0-5ec9-46c3-8a43-68efa5088235" />
+
 
 
 The browser importer can also be started from the web interface when supported by the dashboard.
