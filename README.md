@@ -64,6 +64,10 @@ npm start
 
 Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
+
+<img width="2348" height="1416" alt="image" src="https://github.com/user-attachments/assets/233165aa-9953-41ef-9e6b-e9147c43ba86" />
+
+
 The browser importer can also be started from the web interface when supported by the dashboard.
 
 Use **Refresh data** after the league changes. Use **Clear imported data** to remove the local JSON export from this computer.
