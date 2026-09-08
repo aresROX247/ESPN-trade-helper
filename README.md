@@ -1,4 +1,4 @@
-# ESPN Fantasy League Viewer
+# ESPN-trade-helper
 
 A local ESPN Fantasy Football league importer and viewer. It opens a real browser for ESPN sign-in, imports private league data using your authenticated session, and serves it through a local web interface.
 
