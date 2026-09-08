@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fantasy league viewer</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro">
+        <p class="eyebrow">ESPN FANTASY / PRIVATE LEAGUES</p>
+        <h1>See your league at a glance.</h1>
+        <p class="lede">Enter your league details once, then browse every team and roster in one quiet, readable view.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="connection-title">
+        <nav class="tabs" aria-label="League views">
+          <button class="tab active" type="button" data-tab="connect" aria-selected="true">Connect a league</button>
+          <button class="tab" type="button" data-tab="saved" aria-selected="false">Past leagues <span id="saved-count" class="tab-count">0</span></button>
+          <button class="tab" type="button" data-tab="trades" aria-selected="false">Trade lab</button>
+        </nav>
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">Connection</p>
+            <h2 id="connection-title">League URL</h2>
+          </div>
+          <span class="secure-note">Uses your saved ESPN browser session</span>
+        </div>
+        <div class="browser-import"><div><strong>Import directly from a league URL</strong><span>Paste the full ESPN Fantasy league page URL. The saved ESPN browser session will handle the rest.</span></div><input id="league-url" type="url" placeholder="https://fantasy.espn.com/football/league?leagueId=..." /><button id="browser-import-button" type="button">Import league URL <span aria-hidden="true">&rarr;</span></button></div>
+        <div id="saved-view" class="saved-view" hidden>
+          <div class="saved-heading"><p class="saved-intro">Saved profiles live only in this browser. They contain no ESPN cookies.</p><button id="clear-saved-button" class="quiet-button" type="button">Clear saved profiles</button></div>
+          <div id="saved-leagues" class="saved-leagues"></div>
+        </div>
+        <div id="trades-view" class="trades-view" hidden>
+          <p class="saved-intro">Find offers that help both rosters. The model looks for your position needs, another team's surplus, fair player value, and the fantasy opponents on your schedule.</p>
+          <div class="trade-controls">
+            <label>Your team <select id="my-team" disabled><option>Load imported league data first</option></select></label>
+            <label>Offer type <select id="trade-shape"><option value="one">1 for 1</option><option value="two">2 for 1</option></select></label>
+            <label class="checkbox-control"><input id="avoid-injured" type="checkbox" checked /> Avoid injured players</label>
+            <button id="find-trades" type="button" disabled>Find trade ideas <span aria-hidden="true">&rarr;</span></button>
+          </div>
+          <div id="trade-results" class="trade-results"></div>
+        </div>
+        <details class="help-details">
+          <summary>How does importing work?</summary>
+          <ol>
+            <li>Sign in to ESPN when the browser opens.</li>
+            <li>Paste the full ESPN Fantasy league page URL above.</li>
+            <li>The importer uses the authenticated browser session to pull the league.</li>
+          </ol>
+          <p class="hint">Your ESPN session stays in the local browser profile and is never displayed or saved in the viewer.</p>
+        </details>
+      </section>
+
+      <section id="status" class="status" role="status" aria-live="polite"></section>
+      <section id="league-summary" class="league-summary" hidden></section>
+      <section id="league-tools" class="league-tools" hidden>
+        <label>Find a team <input id="team-search" type="search" placeholder="Search team name or owner" /></label>
+        <label>Position <select id="position-filter"><option value="all">All positions</option><option value="1">QB</option><option value="2">RB</option><option value="3">WR</option><option value="4">TE</option><option value="5">K</option><option value="16">D/ST</option></select></label>
+        <button id="refresh-button" class="quiet-button" type="button" disabled>Refresh data</button>
+        <button id="clear-data-button" class="quiet-button danger-button" type="button">Clear imported data</button>
+      </section>
+      <section id="standings" class="standings" hidden></section>
+      <section id="results" class="results" aria-live="polite"></section>
+    </main>
+  </body>
+</html>
