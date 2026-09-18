@@ -267,6 +267,7 @@ npm test
 | `scripts/setup.js` | Setup and troubleshooting report |
 | `install.ps1`, `install.sh` | One-step installers |
 | `Start Viewer.cmd`, `Import League.cmd` | Double-click launchers for Windows |
+| `Publish Update.cmd` | Double-click helper that commits and pushes an update |
 | `ESPNFantasyImporter.cs`, `build-exe.ps1` | Windows launcher source and build script |
 | `espn-fantasy.js` | Legacy example that used manual cookie entry. Not used by the viewer; kept for reference |
 | `league-data.json` | Imported league data, generated at runtime and ignored by Git |
@@ -279,12 +280,31 @@ This repository is wired to `https://github.com/aresROX247/ESPN-trade-helper`.
 
 1. **Keep the project at the repository root.** GitHub only reads `.github/workflows/`, `SECURITY.md`, and `.github/ISSUE_TEMPLATE/` from the repository root, and `npm install` must run in the same folder as `package.json`. If the files are still nested inside a folder such as `ESPN-trade-helper-1.2/`, move them up to the root. Until then the **Validate** badge stays grey, because Actions cannot find the workflow.
 2. **Never commit private data.** `git status` must not list `league-data.json`, `.espn-browser-profile/`, or `ESPN Fantasy Importer.exe`. All three are already in `.gitignore`.
-3. **Tag a release** so the Windows launcher is built automatically and attached to the Releases page:
+3. **Tag a release** so the Windows launcher is built automatically and attached to the Releases page. The tag must match the `version` in `package.json` (currently `1.3.0`), or the release workflow stops on purpose:
 
    ```bash
-   git tag v1.2.0
+   git tag v1.3.0
    git push --tags
    ```
+
+---
+
+## Publishing an update
+
+When the project folder is a Git clone of this repository, publishing is one step:
+
+1. Make your changes.
+2. Double-click **`Publish Update.cmd`** and type a short description.
+
+The helper shows what will be published, refuses to publish if `league-data.json` or `.espn-browser-profile` somehow got staged, commits with your message, and pushes.
+
+Prefer the terminal? The same three commands:
+
+```bash
+git add -A
+git commit -m "what changed"
+git push
+```
 
 ## Contributing
 
