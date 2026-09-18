@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement to importing, the viewer, or setup
+title: '[Feature]: '
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the friction you hit as a user.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup and installation
+        - Importing a league
+        - Viewer and standings
+        - Trade Lab and waivers
+        - AI trade analyst
+        - Documentation
+        - Windows launcher
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: This can work without sending league data to a third party, or it is clearly opt-in
+          required: true
+        - label: This keeps `playwright` as the only runtime dependency
+          required: false

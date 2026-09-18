@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and installation help
+    url: https://github.com/aresROX247/ESPN-trade-helper#troubleshooting
+    about: Check the troubleshooting table in the README before opening an issue.
+  - name: Report a security concern privately
+    url: https://github.com/aresROX247/ESPN-trade-helper/security/advisories/new
+    about: Never post ESPN cookies, league data, or API keys in a public issue.

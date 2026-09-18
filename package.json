@@ -1,0 +1,62 @@
+{
+  "name": "espn-fantasy-viewer",
+  "private": true,
+  "version": "1.3.0",
+  "description": "Guided browser importer and local viewer for private ESPN Fantasy Football leagues",
+  "keywords": [
+    "espn",
+    "fantasy-football",
+    "fantasy",
+    "playwright",
+    "importer"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aresROX247/ESPN-trade-helper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aresROX247/ESPN-trade-helper/issues"
+  },
+  "homepage": "https://github.com/aresROX247/ESPN-trade-helper#readme",
+  "bin": {
+    "espn-fantasy": "bin/espn-fantasy.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "public/",
+    "browser-import.js",
+    "server.js",
+    "build-exe.ps1",
+    "ESPNFantasyImporter.cs",
+    "install.ps1",
+    "install.sh",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "scripts": {
+    "start": "node bin/espn-fantasy.js start",
+    "app": "node bin/espn-fantasy.js app",
+    "browser": "node browser-import.js",
+    "import": "node bin/espn-fantasy.js import",
+    "refresh": "node browser-import.js --refresh",
+    "setup": "node scripts/setup.js",
+    "doctor": "node scripts/setup.js --verbose",
+    "postinstall": "node scripts/setup.js --postinstall",
+    "build:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File ./build-exe.ps1",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

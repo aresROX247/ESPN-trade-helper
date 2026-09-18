@@ -1,0 +1,31 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: node --check browser-import.js
+      - run: node --check server.js
+      - run: node --check public/app.js
+      - run: node --check public/trade-review.js
+      - run: node --check bin/espn-fantasy.js
+      - run: node --check scripts/environment.js
+      - run: node --check scripts/setup.js
+      - name: Setup check reports problems without failing the build
+        run: node scripts/setup.js --postinstall

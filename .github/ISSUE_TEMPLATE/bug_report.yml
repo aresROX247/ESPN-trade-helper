@@ -1,0 +1,85 @@
+name: Bug report
+description: Something in the importer, the viewer, or setup is not working
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please run `npm run doctor` first and paste the output below.
+        Do not attach `.espn-browser-profile`, `league-data.json`, or real ESPN cookies.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file this
+      options:
+        - label: I ran `npm run setup` (or `npm run doctor`) and read the output
+          required: true
+        - label: I confirms this report contains no ESPN cookies, API keys, or private league data
+          required: true
+        - label: I searched existing issues for the same problem
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `npm run browser`
+        2. Paste a league URL
+        3. See the error
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: '`npm run doctor` output'
+      description: Paste the full output. Redact league names if you like.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser used for importing
+      placeholder: Microsoft Edge, Google Chrome, Playwright Chromium
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version (`node --version`)
+      placeholder: v20.11.1
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Viewer version (`npm run doctor` or the app version)
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: Paste any remaining terminal or browser console output.
+      render: shell
+    validations:
+      required: false

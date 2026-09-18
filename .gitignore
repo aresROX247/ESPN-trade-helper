@@ -1,0 +1,24 @@
+node_modules/
+.espn-browser-profile/
+league-data.json
+*.log
+
+# Build output
+ESPN Fantasy Importer.exe
+dist/
+build/
+
+# Local environment
+.env
+.env.local
+.npmrc
+
+# Editors and OS files
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+Thumbs.db
+Desktop.ini
+.DS_Store
