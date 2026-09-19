@@ -9,9 +9,9 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-test('release metadata is v1.3.0', () => {
+test('release metadata is v1.4.0', () => {
   const packageData = JSON.parse(read('package.json'));
-  assert.equal(packageData.version, '1.3.0');
+  assert.equal(packageData.version, '1.4.0');
   assert.equal(packageData.scripts.test, 'node --test');
   assert.equal(packageData.engines.node, '>=20');
   assert.equal(packageData.bin['espn-fantasy'], 'bin/espn-fantasy.js');
@@ -172,4 +172,39 @@ test('the Trade Lab exposes a live trade review dropdown', () => {
   assert.match(review, /function collectPendingTrades/);
   assert.match(review, /function evaluateIncomingTrade/);
   assert.match(review, /if \(trade\.proposerId === teamId\) sent\.push\(trade\)/);
+});
+
+test('the AI panel supports local OpenAI-compatible model servers', () => {
+  const page = read('public/index.html');
+  const app = read('public/app.js');
+  const server = read('server.js');
+
+  assert.match(page, /id="use-local-model"/);
+  assert.match(page, /id="local-base-url"/);
+  assert.match(page, /id="local-model"/);
+  assert.match(page, /id="test-ai"/);
+
+  assert.match(app, /localModelStorage/);
+  assert.match(app, /useLocalModel\.addEventListener\('change'/);
+  assert.match(app, /\/api\/ai\/test/);
+  assert.match(app, /activeAiSettings/);
+
+  assert.match(server, /function resolveLocalChatEndpoint/);
+  assert.match(server, /chat\/completions/);
+  assert.match(server, /127\.0\.0\.1/);
+});
+
+test('fit breakdown bars and copy offer ship with the viewer', () => {
+  const app = read('public/app.js');
+  const styles = read('public/styles.css');
+  const review = read('public/trade-review.js');
+
+  assert.match(app, /function fitBreakdownMarkup/);
+  assert.match(app, /fitBreakdownMarkup\(review\.components\)/);
+  assert.match(app, /copyOfferButton\(review\.offerText\)/);
+  assert.match(app, /closest\('\.copy-offer'\)/);
+  assert.match(styles, /\.fit-bar-fill/);
+  assert.match(styles, /\.copy-offer/);
+  assert.match(review, /offerText: buildOfferText/);
+  assert.match(review, /components: \[/);
 });

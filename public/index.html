@@ -62,8 +62,10 @@
               <section id="ai-trade-panel" class="ai-panel" aria-labelledby="ai-trade-title">
                 <div class="ai-panel-heading"><div><p class="section-label">Optional assistant</p><h3 id="ai-trade-title">AI trade analyst</h3></div><span id="ai-state" class="ai-state">Locked</span></div>
                 <p class="ai-copy">Add your own OpenAI API key to ask for trade ideas using your roster, the league rosters, and available waiver players. The key is kept in this browser and sent only to this local app.</p>
+                <label class="checkbox-control ai-local-toggle"><input id="use-local-model" type="checkbox" /> Use a local OpenAI-compatible model (Ollama, LM Studio&hellip;)</label>
+                <div class="ai-local-row"><input id="local-base-url" type="text" placeholder="Base URL, e.g. http://localhost:11434/v1" autocomplete="off" /><input id="local-model" type="text" placeholder="Model name, e.g. llama3.1" autocomplete="off" /></div>
                 <div class="ai-key-row"><input id="ai-key" type="password" placeholder="OpenAI API key" autocomplete="off" /><button id="save-ai-key" class="quiet-button" type="button">Enable AI</button><button id="clear-ai-key" class="quiet-button danger-button" type="button" hidden>Remove key</button></div>
-                <div class="ai-actions"><label class="checkbox-control"><input id="use-ai-trades" type="checkbox" disabled /> Use AI analysis</label><button id="run-ai-trades" type="button" disabled>Analyze trades</button></div>
+                <div class="ai-actions"><label class="checkbox-control"><input id="use-ai-trades" type="checkbox" disabled /> Use AI analysis</label><button id="test-ai" class="quiet-button" type="button" disabled>Test connection</button><button id="run-ai-trades" type="button" disabled>Analyze trades</button></div>
                 <div id="ai-results" class="ai-results" aria-live="polite"></div>
               </section>
             </div>

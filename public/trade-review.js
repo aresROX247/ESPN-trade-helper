@@ -18,6 +18,125 @@
   const closedStatuses = ['CANCELED', 'CANCELLED', 'DECLINED', 'EXPIRED', 'REVOKED'];
   const defaultRequirements = { 1: 1, 2: 2, 3: 2, 4: 1 };
 
+// Starting-lineup requirements per core position (QB/RB/WR/TE as 1/2/3/4).
+// Callers can pass their own via settings.requirements; this returns the copy
+// used by default so shared objects are never mutated by accident.
+function lineupRequirements() {
+  return { ...defaultRequirements };
+}
+
+  const scheduleLabels = { 1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'D/ST' };
+
+  // ESPN fantasy team IDs are 1-32 (0 = free agent). The table covers the
+  // standard NFL rotation; if ESPN adds/renumbers teams the lookup simply
+  // misses and the bye-week part of the review is skipped, never wrong.
+  const proTeamByeWeeks = {
+    1: 14, 2: 14, 3: 11, 4: 11, 5: 14, 6: 11, 7: 5, 8: 5, 9: 11, 10: 10,
+    11: 6, 12: 6, 13: 7, 14: 9, 15: 12, 16: 7, 17: 10, 18: 8, 19: 8,
+    20: 12, 21: 9, 22: 9, 23: 14, 24: 12, 25: 5, 26: 10, 27: 7,
+    28: 6, 29: 8, 30: 12, 33: 9, 34: 9,
+  };
+
+  // Bye-week + schedule context ------------------------------------------------
+  //
+  // playoffStartWeek reads the regular-season length out of mSettings
+  // (scheduleSettings.matchupPeriodCount) so playoff "win now vs later"
+  // notes never rely on a hardcoded week. currentWeek reads
+  // status.currentMatchupPeriod with fallbacks for older payloads.
+  function playoffStartWeek(data) {
+    const count = Number(data && data.settings && data.settings.scheduleSettings
+      && data.settings.scheduleSettings.matchupPeriodCount);
+    if (Number.isFinite(count) && count > 0) return count + 1;
+    const finalWeek = Number(data && data.status && data.status.finalScoringPeriod);
+    if (Number.isFinite(finalWeek) && finalWeek > 0) return finalWeek - 2;
+    return 15;
+  }
+
+  function currentWeek(data) {
+    const week = Number(data && data.status && (data.status.currentMatchupPeriod || data.status.scoringPeriodId))
+      || Number(data && data.scoringPeriodId);
+    return Number.isFinite(week) && week > 0 ? week : 1;
+  }
+
+  function byeWeekOf(player) {
+    const id = Number(player && player.proTeamId);
+    if (!Number.isFinite(id)) return null;
+    const week = proTeamByeWeeks[id];
+    return Number.isFinite(week) ? week : null;
+  }
+
+  function teamPointsFor(data, teamId) {
+    const teams = (data && data.teams) || [];
+    for (const team of teams) {
+      if (Number(team.id) !== Number(teamId)) continue;
+      const points = Number(team.record && team.record.overall && team.record.overall.pointsFor);
+      return Number.isFinite(points) ? points : 0;
+    }
+    return 0;
+  }
+  function teamName(team) {
+    return [team && team.location, team && team.nickname].filter(Boolean).join(' ') || (team && team.name) || 'Unnamed team';
+  }
+
+
+  // Average opponent season points-for across the fantasy schedule
+  // (mMatchup view). 0 games means "no schedule data", not "easy schedule".
+  function scheduleDifficulty(data, teamId) {
+    const schedule = (data && data.schedule) || [];
+    let total = 0;
+    let games = 0;
+    for (const matchup of schedule) {
+      if (!matchup || typeof matchup !== 'object') continue;
+      const homeId = Number(matchup.home && matchup.home.teamId);
+      const awayId = Number(matchup.away && matchup.away.teamId);
+      let opponentId = null;
+      if (homeId === Number(teamId) && Number.isFinite(awayId)) opponentId = awayId;
+      else if (awayId === Number(teamId) && Number.isFinite(homeId)) opponentId = homeId;
+      else continue;
+      total += teamPointsFor(data, opponentId);
+      games += 1;
+    }
+    return { average: games ? total / games : 0, games };
+  }
+
+  // Near-term context: opponents in the next two matchup periods plus any
+  // traded players whose NFL bye lands in that window.
+  function upcomingContext(data, teamId, players) {
+    const week = currentWeek(data);
+    const playoffsAt = playoffStartWeek(data);
+    const schedule = (data && data.schedule) || [];
+    const opponents = [];
+    for (const matchup of schedule) {
+      const period = Number(matchup && matchup.matchupPeriodId);
+      if (period !== week && period !== week + 1) continue;
+      const homeId = Number(matchup.home && matchup.home.teamId);
+      const awayId = Number(matchup.away && matchup.away.teamId);
+      if (homeId === Number(teamId) && Number.isFinite(awayId)) opponents.push({ week: period, opponentId: awayId });
+      else if (awayId === Number(teamId) && Number.isFinite(homeId)) opponents.push({ week: period, opponentId: homeId });
+    }
+    const byeHits = (players || [])
+      .map((player) => ({ player, bye: byeWeekOf(player) }))
+      .filter((entry) => entry.bye !== null && (entry.bye === week || entry.bye === week + 1));
+    return { week, playoffsAt, opponents, byeHits };
+  }
+
+  // Builds a paste-ready offer message for the trade cards ("Offer X for Y").
+  // Pure function (no clipboard access) so node --test can cover it; app.js
+  // wires it to navigator.clipboard with an execCommand fallback.
+  function buildOfferText({ myTeamName, partnerName, giveNames, receiveNames, score, verdict }) {
+    const give = (giveNames || []).join(', ') || '—';
+    const receive = (receiveNames || []).join(', ') || '—';
+    const scoreText = Number.isFinite(Number(score)) ? ` (fit ${Math.round(Number(score))})` : '';
+    const lines = [
+      `Trade offer${partnerName ? ` to ${partnerName}` : ''}:`,
+      `• I give: ${give}`,
+      `• I receive: ${receive}`,
+    ];
+    if (verdict) lines.push(`• My read: ${verdict}${scoreText}`);
+    if (myTeamName) lines.push(`— ${myTeamName}`);
+    return lines.join('\n');
+  }
+
   function isTradeTransaction(transaction) {
     return Boolean(transaction) && typeof transaction.type === 'string' && transaction.type.indexOf('TRADE') === 0;
   }
@@ -135,6 +254,11 @@
     const gave = (trade.gaveIds || []).map((playerId) => lookup(playerId) || placeholderPlayer(playerId));
     const myPlayers = settings.myPlayers || [];
     const theirPlayers = settings.theirPlayers || [];
+    // Optional league payload (imported data) powers the bye-week and schedule
+    // context; without it every schedule note degrades to "no note".
+    const data = settings.league || null;
+    const teamId = Number(settings.teamId);
+    const partnerName = settings.partnerName || '';
     const receivedIds = new Set(received.map((player) => player.id));
     const gaveIds = new Set(gave.map((player) => player.id));
 
@@ -166,9 +290,29 @@
     const lineupComponent = Math.round(clamp(lineupGain * 3, -30, 60));
     const valueComponent = Math.round(clamp(valueGain * 0.2 - valueGap * 0.05, -15, 15));
     const needComponent = Math.round(clamp(filledNeeds.length * 12 - startingHoles.length * 18, -28, 24));
-    const scheduleRank = Number(settings.scheduleRank) || 0;
-    const scheduleComponent = scheduleRank && scheduleRank < 6 ? 5 : 0;
     const healthComponent = -riskyIncoming.length * 10 + relievedIncoming.length * 4;
+
+    // Bye-week + schedule context: traded players whose NFL bye lands in the
+    // next two weeks, upcoming fantasy opponents, and full-season difficulty
+    // from the mMatchup schedule + mSettings playoff start. Everything
+    // degrades to "no note" when the payload lacks schedule data.
+    const tradedPlayers = received.concat(gave);
+    const timing = upcomingContext(data, teamId, tradedPlayers);
+    const difficulty = scheduleDifficulty(data, teamId);
+    const theirDifficulty = scheduleDifficulty(data, trade.counterpartyId);
+    let scheduleComponent = 0;
+    let scheduleRank = 0;
+    let playoffNote = null;
+    if (difficulty.games > 0) {
+      scheduleComponent = difficulty.average > theirDifficulty.average ? 6 : 3;
+      scheduleRank = difficulty.average;
+      const weeksToPlayoffs = timing.playoffsAt - timing.week;
+      if (weeksToPlayoffs >= 0 && weeksToPlayoffs <= 4) {
+        playoffNote = `Playoffs start around Week ${timing.playoffsAt}; favor players who help now.`;
+      } else if (weeksToPlayoffs < 0) {
+        playoffNote = `You are in the playoff weeks (started around Week ${timing.playoffsAt}); every point counts now.`;
+      }
+    }
 
     const bothSidesGain = lineupGain > 0.5 && theirLineupGain > 0.5;
     const oneSided = lineupGain <= 0.5 && theirLineupGain > 0.5;
@@ -204,7 +348,16 @@
     if (bothSidesGain) reasons.push({ tone: 'up', text: `Both sides improve: their best lineup gains ${theirLineupGain.toFixed(1)} points too, which is why this offer is realistic.` });
     else if (oneSided) reasons.push({ tone: 'down', text: `They gain ${theirLineupGain.toFixed(1)} lineup points while you do not, so this offer is one-sided and worth countering.` });
 
-    if (scheduleComponent) reasons.push({ tone: 'up', text: `Your opponents average projected rank is ${scheduleRank.toFixed(1)}, a difficult schedule, so extra depth matters more than usual.` });
+    if (scheduleComponent) reasons.push({ tone: 'up', text: `Your remaining opponents average ${scheduleRank.toFixed(1)} season points, a difficult schedule, so extra depth matters more than usual.` });
+    for (const hit of timing.byeHits) {
+      const side = received.indexOf(hit.player) >= 0 ? 'You would receive' : 'You would give up';
+      reasons.push({ tone: 'alert', text: `${side} ${hit.player.name}, whose NFL team is on bye in Week ${hit.bye} — plan a fill-in for that week.` });
+    }
+    for (const game of timing.opponents.slice(0, 2)) {
+      const opponent = teamName(((data && data.teams) || []).find((candidate) => Number(candidate.id) === Number(game.opponentId)) || { location: `Team ${game.opponentId}`, nickname: '' });
+      reasons.push({ tone: 'even', text: `Week ${game.week} matchup: ${opponent}.` });
+    }
+    if (playoffNote) reasons.push({ tone: 'even', text: playoffNote });
 
     if (received.length !== gave.length) reasons.push({ tone: 'even', text: `This is a ${gave.length}-for-${received.length} offer, so an uneven amount of depth on one side is expected.` });
     if (settings.avoidInjured && riskyIncoming.length) reasons.push({ tone: 'alert', text: 'Your Trade Lab is set to avoid injured players, and this offer includes at least one.' });
@@ -223,6 +376,14 @@
       received,
       gave,
       reasons,
+      schedule: { week: timing.week, playoffsAt: timing.playoffsAt, opponents: timing.opponents, byeHits: timing.byeHits.map((hit) => ({ name: hit.player.name, bye: hit.bye })), difficulty },
+      offerText: buildOfferText({
+        partnerName,
+        giveNames: gave.map((player) => player.name),
+        receiveNames: received.map((player) => player.name),
+        score,
+        verdict,
+      }),
       components: [
         ['Lineup gain', lineupComponent],
         ['Player value', valueComponent],
@@ -237,10 +398,18 @@
   const api = {
     corePositions,
     injuredStatuses,
+    proTeamByeWeeks,
     isPendingTransaction,
     collectPendingTrades,
     countByPosition,
     evaluateIncomingTrade,
+    lineupRequirements,
+    currentWeek,
+    playoffStartWeek,
+    byeWeekOf,
+    scheduleDifficulty,
+    upcomingContext,
+    buildOfferText,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -29,6 +29,10 @@ const aiKeyInput = document.querySelector('#ai-key');
 const saveAiKey = document.querySelector('#save-ai-key');
 const clearAiKey = document.querySelector('#clear-ai-key');
 const useAiTrades = document.querySelector('#use-ai-trades');
+const testAiButton = document.querySelector('#test-ai');
+const useLocalModel = document.querySelector('#use-local-model');
+const localBaseUrlInput = document.querySelector('#local-base-url');
+const localModelInput = document.querySelector('#local-model');
 const runAiTrades = document.querySelector('#run-ai-trades');
 const aiResults = document.querySelector('#ai-results');
 const waiverResults = document.querySelector('#waiver-results');
@@ -37,6 +41,7 @@ const pendingTradeSelect = document.querySelector('#pending-trade-select');
 const pendingTradeDetail = document.querySelector('#pending-trade-detail');
 const pendingTradesCount = document.querySelector('#pending-trades-count');
 const aiKeyStorage = 'espn-fantasy-openai-key';
+const localModelStorage = 'espn-fantasy-local-model';
 let importPoll;
 let pendingTrades = { received: [], sent: [] };
 let pendingTradeIndex = new Map();
@@ -294,6 +299,54 @@ function tradeSidesMarkup(index, trade) {
   return `<div class="pending-sides">${side('You receive', trade.receivedIds)}${side('You give up', trade.gaveIds)}</div>`;
 }
 
+// Renders fit components as labeled bars: green fill helps you, red fill hurts.
+// Magnitudes are normalized against the widest possible component (+60 lineup).
+function fitBreakdownMarkup(components) {
+  return (components || []).map(([label, value]) => {
+    const numeric = Number(value) || 0;
+    const fillClass = numeric > 0 ? 'pos' : numeric < 0 ? 'neg' : 'zero';
+    const width = numeric === 0 ? 5 : Math.min(100, Math.round((Math.abs(numeric) / 60) * 100));
+    return `<span class="fit-component"><span class="fit-component-head"><b>${escapeHtml(String(label))}</b><em>${numeric > 0 ? '+' : ''}${numeric}</em></span><i class="fit-bar"><i class="fit-bar-fill ${fillClass}" style="width:${width}%"></i></i></span>`;
+  }).join('');
+}
+
+// Paste-ready offer text with a copy button (clipboard API + execCommand fallback).
+function copyOfferButton(offerText) {
+  if (!offerText) return '';
+  return `<button class="copy-offer" type="button" data-offer="${encodeURIComponent(offerText)}">Copy offer</button>`;
+}
+
+function fallbackCopyText(text, done) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  try { document.execCommand('copy'); } catch (error) { /* clipboard unavailable */ }
+  area.remove();
+  done();
+}
+
+function copyOfferText(text, button) {
+  const done = () => {
+    button.classList.add('copied');
+    button.textContent = 'Copied!';
+    setTimeout(() => { button.classList.remove('copied'); button.textContent = 'Copy offer'; }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => fallbackCopyText(text, done));
+  else fallbackCopyText(text, done);
+}
+
+// One delegated listener handles every copy-offer button, including ones added
+// later by re-rendering the trade panels.
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('.copy-offer');
+  if (!button) return;
+  copyOfferText(decodeURIComponent(button.dataset.offer || ''), button);
+});
+
 function selectedTeam(data) {
   return (data.teams || []).find((team) => String(team.id) === teamSelect.value) || data.teams?.[0];
 }
@@ -349,6 +402,9 @@ function renderPendingTradeDetail(data, mine, index) {
     myPlayers: teamPlayers(mine),
     theirPlayers: opponent ? teamPlayers(opponent) : [],
     lineupValue,
+    league: data,
+    teamId: mine.id,
+    partnerName: opponent ? teamName(opponent) : '',
     scheduleRank: scheduleDifficulty(data, mine.id),
     requirements: lineupRequirements,
     labels: positionNames,
@@ -356,13 +412,13 @@ function renderPendingTradeDetail(data, mine, index) {
   });
 
   const reasons = review.reasons.map((reason) => `<li class="${reason.tone}">${escapeHtml(reason.text)}</li>`).join('');
-  const breakdown = review.components.map(([label, value]) => `<span><b>${escapeHtml(label)}</b><em>${value > 0 ? '+' : ''}${value}</em></span>`).join('');
+  const breakdown = fitBreakdownMarkup(review.components);
   const theirLine = review.theirLineupGain >= 0
     ? `+${review.theirLineupGain.toFixed(1)} points, so you can see what they gain`
     : `${review.theirLineupGain.toFixed(1)} points, which is what they would be giving up`;
   const comparison = `<div class="trade-benefit-grid"><div class="trade-benefit"><b>Your lineup</b><span>${review.lineupBefore.toFixed(1)} &rarr; ${review.lineupAfter.toFixed(1)} (${review.lineupGain >= 0 ? '+' : ''}${review.lineupGain.toFixed(1)} points)</span></div><div class="trade-benefit"><b>Their lineup</b><span>${theirLine}</span></div></div>`;
 
-  pendingTradeDetail.innerHTML = `<div class="pending-verdict ${review.tone}"><strong>${escapeHtml(review.verdict)}</strong><span>${review.score} fit points</span></div><p class="pending-from">${opponent ? escapeHtml(teamName(opponent)) : 'Another manager'} sent you this offer.</p>${sides}${comparison}<h4 class="pending-reasons-title">Why</h4><ul class="trade-reasons">${reasons}</ul><div class="fit-breakdown">${breakdown}</div>${note}`;
+  pendingTradeDetail.innerHTML = `<div class="pending-verdict ${review.tone}"><strong>${escapeHtml(review.verdict)}</strong><span>${review.score} fit points</span></div><p class="pending-from">${opponent ? escapeHtml(teamName(opponent)) : 'Another manager'} sent you this offer.</p>${sides}${comparison}<h4 class="pending-reasons-title">Why</h4><ul class="trade-reasons">${reasons}</ul><div class="fit-breakdown">${breakdown}</div>${copyOfferButton(review.offerText)}${note}`;
 }
 
 pendingTradeSelect.addEventListener('change', () => {
@@ -378,14 +434,37 @@ teamSelect.addEventListener('change', () => {
 });
 
 function updateAiState() {
-  const enabled = Boolean(localStorage.getItem(aiKeyStorage));
+  const savedLocal = readLocalModelSettings();
+  const enabled = Boolean(localStorage.getItem(aiKeyStorage)) || (useLocalModel.checked && Boolean(savedLocal.model));
   aiPanel.classList.toggle('enabled', enabled);
   aiState.textContent = enabled ? 'Ready' : 'Locked';
   aiState.classList.toggle('ready', enabled);
   useAiTrades.disabled = !enabled;
   runAiTrades.disabled = !enabled || !useAiTrades.checked;
-  clearAiKey.hidden = !enabled;
-  saveAiKey.textContent = enabled ? 'Update key' : 'Enable AI';
+  testAiButton.disabled = !enabled;
+  clearAiKey.hidden = !localStorage.getItem(aiKeyStorage);
+  saveAiKey.textContent = localStorage.getItem(aiKeyStorage) ? 'Update key' : 'Enable AI';
+}
+
+// Local OpenAI-compatible servers (Ollama, LM Studio) are configured once and
+// kept in localStorage so the Test connection button and the analysis run use
+// the same base URL and model name.
+function readLocalModelSettings() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(localModelStorage) || '{}');
+    return { baseUrl: String(parsed.baseUrl || ''), model: String(parsed.model || '') };
+  } catch (error) {
+    return { baseUrl: '', model: '' };
+  }
+}
+
+function localModelSettingsFromInputs() {
+  return { baseUrl: localBaseUrlInput.value.trim(), model: localModelInput.value.trim() };
+}
+
+function activeAiSettings() {
+  if (useLocalModel.checked) return { useLocalModel: true, ...readLocalModelSettings(), apiKey: '' };
+  return { useLocalModel: false, baseUrl: '', model: '', apiKey: localStorage.getItem(aiKeyStorage) };
 }
 
 function aiPayload() {
@@ -398,7 +477,8 @@ async function runAiAnalysis() {
   aiResults.innerHTML = '<p class="ai-loading">Analyzing roster fit and waiver options...</p>';
   runAiTrades.disabled = true;
   try {
-    const response = await fetch('/api/ai/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: localStorage.getItem(aiKeyStorage), payload: aiPayload() }) });
+    const settings = activeAiSettings();
+    const response = await fetch('/api/ai/trades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...settings, payload: aiPayload() }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'AI analysis failed.');
     aiResults.innerHTML = `<div class="ai-summary"><strong>AI read</strong><p>${escapeHtml(result.summary || 'No summary returned.')}</p></div>${(result.tradeIdeas || []).map((idea) => `<article class="ai-result-card"><strong>${escapeHtml(idea.offer || 'Trade offer')}</strong><span>for ${escapeHtml(idea.receive || 'target')}</span><b>${escapeHtml(idea.fit || 'Fit not rated')}</b><p>${escapeHtml(idea.whyItHelps || '')}</p><small>${escapeHtml(idea.whyTheyAccept || '')} Risk: ${escapeHtml(idea.risk || 'Review before acting.')}</small></article>`).join('')}${(result.waiverTargets || []).map((idea) => `<article class="ai-result-card"><strong>${escapeHtml(idea.action || 'WAIVER')}</strong><span>${escapeHtml(idea.player || '')}</span><p>${escapeHtml(idea.reason || '')}</p></article>`).join('')}`;
@@ -410,6 +490,51 @@ saveAiKey.addEventListener('click', () => { const key = aiKeyInput.value.trim();
 clearAiKey.addEventListener('click', () => { localStorage.removeItem(aiKeyStorage); useAiTrades.checked = false; updateAiState(); });
 useAiTrades.addEventListener('change', updateAiState);
 runAiTrades.addEventListener('click', runAiAnalysis);
+
+// Test connection: verifies OpenAI or the local model server before running an
+// analysis, so a wrong base URL or model name fails fast with a clear message.
+testAiButton.addEventListener('click', async () => {
+  testAiButton.disabled = true;
+  aiResults.innerHTML = '<p class="ai-loading">Testing the connection...</p>';
+  try {
+    const settings = activeAiSettings();
+    const response = await fetch('/api/ai/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'The connection test failed.');
+    const label = settings.useLocalModel ? `Local model server at ${result.endpoint}` : 'OpenAI API';
+    aiResults.innerHTML = `<p class="status ok">Connection OK — ${escapeHtml(label)}.</p>`;
+  } catch (error) {
+    aiResults.innerHTML = `<p class="status error">${escapeHtml(error.message)}</p>`;
+  }
+  updateAiState();
+});
+
+// Prefill and persist the local-model settings; typing a model name is enough
+// to unlock the panel when the local option is checked.
+useLocalModel.addEventListener('change', () => {
+  const saved = readLocalModelSettings();
+  localBaseUrlInput.value = saved.baseUrl;
+  localModelInput.value = saved.model;
+  saveLocalModelSettings();
+  updateAiState();
+});
+localBaseUrlInput.addEventListener('change', saveLocalModelSettings);
+localModelInput.addEventListener('change', saveLocalModelSettings);
+
+function saveLocalModelSettings() {
+  localStorage.setItem(localModelStorage, JSON.stringify(localModelSettingsFromInputs()));
+  updateAiState();
+}
+
+(function restoreLocalModelSettings() {
+  const saved = readLocalModelSettings();
+  if (saved.baseUrl || saved.model) {
+    useLocalModel.checked = true;
+    localBaseUrlInput.value = saved.baseUrl;
+    localModelInput.value = saved.model;
+  }
+})();
+
 updateAiState();
 
 function findTradeIdeas() {
@@ -469,8 +594,9 @@ function findTradeIdeas() {
     const outgoingText = idea.outgoing.map((player) => escapeHtml(player.name)).join(' + ');
     const outgoingPosition = positionNames[idea.outgoing[0].position];
     const acceptanceText = idea.otherGain >= 0 ? `Their best lineup improves by <strong>+${idea.otherGain.toFixed(1)}</strong> points (${idea.otherLineup.toFixed(1)} &rarr; ${idea.otherAfter.toFixed(1)}).` : `This favors you by ${Math.abs(idea.otherGain).toFixed(1)} projected points, but they fill a roster gap at ${outgoingPosition} and stay within a reasonable value range.`;
-    const scoreBreakdown = [['Lineup gain', idea.lineupComponent], ['Partner benefit', idea.partnerComponent], ['Roster need', idea.needComponent], ['Player value', idea.valueComponent], ['Schedule', idea.scheduleComponent], ['Health', idea.healthComponent]].map(([label, value]) => `<span><b>${escapeHtml(label)}</b><em>${value > 0 ? '+' : ''}${value}</em></span>`).join('');
-    return `<details class="trade-card" ${index === 0 ? 'open' : ''}><summary><div class="trade-score">${idea.score}<span>fit points</span></div><div class="trade-content"><p class="fit-tier">${idea.fitTier}</p><p class="trade-offer">Offer <strong>${outgoingText}</strong> to <strong>${escapeHtml(idea.other.name || `Team ${idea.other.id}`)}</strong></p><p class="trade-receive">Receive <strong>${escapeHtml(idea.incoming.name)}</strong> <span class="role-chip">${positionNames[idea.incoming.position]}</span></p></div><span class="trade-toggle" aria-hidden="true">+</span></summary><div class="trade-detail"><p class="fit-meaning"><strong>What this means:</strong> ${idea.fitMeaning}</p><div class="fit-breakdown">${scoreBreakdown}</div><div class="trade-benefit-grid"><div class="trade-benefit"><b>Why it helps you</b><span>Your best lineup improves by <strong>+${idea.myGain.toFixed(1)}</strong> projected points (${idea.currentLineup.toFixed(1)} &rarr; ${idea.myAfter.toFixed(1)}). Role depth changes: ${roleChanges || 'flex coverage improves'}. ${valueText}</span></div><div class="trade-benefit"><b>Why they may accept</b><span>${acceptanceText}</span></div></div><p class="trade-reason">${scheduleText}</p></div></details>`;
+    const scoreBreakdown = fitBreakdownMarkup([['Lineup gain', idea.lineupComponent], ['Partner benefit', idea.partnerComponent], ['Roster need', idea.needComponent], ['Player value', idea.valueComponent], ['Schedule', idea.scheduleComponent], ['Health', idea.healthComponent]]);
+    const offerText = TradeReview.buildOfferText({ partnerName: idea.other.name || `Team ${idea.other.id}`, giveNames: idea.outgoing.map((player) => player.name), receiveNames: [idea.incoming.name], score: idea.score, verdict: idea.fitTier });
+    return `<details class="trade-card" ${index === 0 ? 'open' : ''}><summary><div class="trade-score">${idea.score}<span>fit points</span></div><div class="trade-content"><p class="fit-tier">${idea.fitTier}</p><p class="trade-offer">Offer <strong>${outgoingText}</strong> to <strong>${escapeHtml(idea.other.name || `Team ${idea.other.id}`)}</strong></p><p class="trade-receive">Receive <strong>${escapeHtml(idea.incoming.name)}</strong> <span class="role-chip">${positionNames[idea.incoming.position]}</span></p></div><span class="trade-toggle" aria-hidden="true">+</span></summary><div class="trade-detail"><p class="fit-meaning"><strong>What this means:</strong> ${idea.fitMeaning}</p><div class="fit-breakdown">${scoreBreakdown}</div><div class="trade-benefit-grid"><div class="trade-benefit"><b>Why it helps you</b><span>Your best lineup improves by <strong>+${idea.myGain.toFixed(1)}</strong> projected points (${idea.currentLineup.toFixed(1)} &rarr; ${idea.myAfter.toFixed(1)}). Role depth changes: ${roleChanges || 'flex coverage improves'}. ${valueText}</span></div><div class="trade-benefit"><b>Why they may accept</b><span>${acceptanceText}</span></div></div><p class="trade-reason">${scheduleText}</p>${copyOfferButton(offerText)}</div></details>`;
   }).join('') || '<p class="empty-saved">No mutually sensible offers found from the current rosters. Try selecting another team or update the league after new trades.</p>';
 }
 

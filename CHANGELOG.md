@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0 - 2026-09-18
+
+Local AI and trade-insight release.
+
+- Added support for **local OpenAI-compatible models** (Ollama, LM Studio, and similar). Check **Use a local OpenAI-compatible model** in the AI panel, enter the base URL (for example `http://localhost:11434/v1`) and the model name, and the analysis runs on your own machine instead of the OpenAI API. The settings are remembered in the browser.
+- Added a **Test connection** button that verifies OpenAI or the local model server before an analysis, so a wrong base URL or model name fails fast with a clear message instead of a silent failure.
+- Added **fit breakdown bars** in Trade Lab results and the live trade review. Each bar shows how lineup gain, player value, roster need, schedule, health, and partner benefit contribute to the fit score.
+- Added a **Copy offer** button to trade reviews and Trade Lab cards. It puts a ready-to-paste offer summary on the clipboard, with a fallback for browsers without the async clipboard API.
+- Fixed the local file server's path check: a crafted URL could read files from folders that sit next to `public/` (for example a backup copy of the viewer) because a plain prefix check accepted sibling folders. The check now requires the path to stay inside `public/`, and a regression test covers it.
+- Hardened the server: it now binds to `127.0.0.1` only, static responses send `Cache-Control: no-store`, and more file types get the correct `Content-Type`.
+- The AI endpoints now answer invalid request bodies with HTTP 400 instead of 502.
+- Added unit tests for the local-model endpoint resolver, the timeout helper, and static file safety.
+
 ## 1.3.0 - 2026-09-18
 
 Trade review release.

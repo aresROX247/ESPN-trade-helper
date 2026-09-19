@@ -5,9 +5,9 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![Validate](https://github.com/aresROX247/ESPN-trade-helper/actions/workflows/ci.yml/badge.svg)](https://github.com/aresROX247/ESPN-trade-helper/actions/workflows/ci.yml)
 
-**Version 1.3.0**
+**Version 1.4.0**
 
-Import a private ESPN Fantasy Football league and browse it in a local web dashboard: standings, owners, logos, rosters, points for, a Trade Lab, a live review of the trade offers other managers sent you, a waiver-wire sidebar, and an optional AI trade analyst.
+Import a private ESPN Fantasy Football league and browse it in a local web dashboard: standings, owners, logos, rosters, points for, a Trade Lab, a live review of the trade offers other managers sent you, a waiver-wire sidebar, and an optional AI trade analyst that can use OpenAI or your own local model server.
 
 It opens a real browser for ESPN sign-in, reuses that authenticated session to pull your league, and serves the result from `http://localhost:3000`. Your ESPN cookies stay inside a local browser profile and nothing is uploaded anywhere.
 
@@ -153,8 +153,8 @@ Then use:
 - **Import league URL** / **Refresh data** to pull fresh data without leaving the dashboard
 - **Clear imported data** to delete `league-data.json` from this computer
 - **Find a team** and **Position** to filter what you see
-- **Trade lab** for 1-for-1 and 2-for-1 injury-aware trade ideas
-- **Live trades** for a dropdown of the pending offers other managers sent you, each scored with a recommended action and the reasons behind it
+- **Trade lab** for 1-for-1 and 2-for-1 injury-aware trade ideas, each with a fit breakdown of what drives the score and a one-click **Copy offer** button
+- **Live trades** for a dropdown of the pending offers other managers sent you, each scored with a recommended action, the reasons behind it, a fit breakdown, and **Copy offer**
 - **Available players** on the waiver sidebar for rule-based `TARGET`, `WATCH`, and `PASS` guidance
 
 ---
@@ -173,7 +173,8 @@ For an offer waiting on you, the review shows:
 - the exact players you receive and give up, with projected points, draft rank, and injury status
 - how your best starting lineup changes, and what the other manager gains
 - a **Why** list with each reason tagged as a gain, a loss, or an alert (injured player, missing data, one-sided value)
-- the same fit-point breakdown the Trade Lab generator uses
+- a **fit breakdown** - one bar per score component (lineup gain, player value, roster need, schedule, health, partner benefit) - so you can see what drives the recommendation
+- a **Copy offer** button that puts a ready-to-paste summary of the offer on your clipboard, for the chat with the other manager
 
 The score is decision support, not a guarantee. ESPN still processes a trade on its own schedule after both managers accept, so accept or decline it in ESPN as well.
 
@@ -196,7 +197,8 @@ Run `npm run doctor` first. It reports your Node.js version, whether Playwright 
 | The importer window is minimized and asking for sign-in | Restore the window from the taskbar |
 | `Port 3000 is already in use` | Close the other viewer, or start on another port: `$env:PORT=3001; npm start` (Windows) or `PORT=3001 npm start` (macOS and Linux) |
 | `Import a league URL once before using Refresh data` | Run the first import before refreshing |
-| The AI panel says **Locked** | Add your own OpenAI API key inside the panel to enable it |
+| The AI panel says **Locked** | Add an OpenAI API key inside the panel, or check **Use a local OpenAI-compatible model** and enter a base URL and model name |
+| The connection test fails for a local model | Confirm Ollama (or LM Studio) is running, the base URL is right (Ollama: `http://localhost:11434/v1`), and the model name matches an installed model (`ollama list`) |
 | **Live trades** says no trades are waiting | ESPN only returns pending offers, so refresh after the offer is sent. Confirm you picked the right team in **Your team** |
 | The Windows launcher closes instantly | Run `Start Viewer.cmd` instead so errors stay on screen, or run `npm run doctor` |
 
@@ -209,7 +211,7 @@ If you are still stuck, open an issue using the bug report template and paste th
 - The importer never asks you to paste ESPN cookies. The `espn_s2` and `SWID` cookies are read from the local browser session and used only for ESPN requests made on your machine.
 - Saved league profiles contain only the league URL, league ID, season, and league name. Cookies are never written to them.
 - `league-data.json` and `.espn-browser-profile/` are ignored by Git. Keep them out of commits, screenshots, and issues.
-- The server binds to your local machine and serves only files from `public/`.
+- The viewer binds to `127.0.0.1` only, serves only files from `public/`, and cannot read files from folders next to it.
 - The AI panel is opt-in and the only feature that sends anything to a third party. See below.
 
 Found a security problem? Please report it privately using the process in [SECURITY.md](SECURITY.md) instead of opening a public issue.
@@ -218,9 +220,27 @@ Found a security problem? Please report it privately using the process in [SECUR
 
 ## Optional AI trade analyst
 
-The AI panel stays disabled until you add your own OpenAI API key. The key is stored only in your browser's local storage and sent to the local server when you choose **Analyze trades**. It is never written to `league-data.json` and never logged by the app.
+The AI panel stays locked until you connect a model, and you choose who reads your roster context:
 
-When you use it, your roster context and the players involved are sent to OpenAI so it can respond. Leave the panel locked if you do not want that.
+| Option | Setup | Where your data goes |
+| --- | --- | --- |
+| **OpenAI API** | Paste your OpenAI API key into the panel and click **Enable AI** | `api.openai.com` |
+| **Local model** | Check **Use a local OpenAI-compatible model**, enter a base URL and model name, then click **Test connection** | Your own computer only |
+
+Either way, the key and the local-model settings are stored only in your browser's local storage, sent only to this local app, never written to `league-data.json`, and never logged.
+
+### Using a local model (Ollama, LM Studio, and similar)
+
+The local option talks to any OpenAI-compatible server running on your machine, so your rosters, waiver players, and trade questions never leave your computer.
+
+1. Install [Ollama](https://ollama.com) (or LM Studio) and pull a model, for example `ollama pull llama3.1`.
+2. In the viewer's AI panel, check **Use a local OpenAI-compatible model**.
+3. Base URL: `http://localhost:11434/v1` (Ollama's default). LM Studio shows its port in the Developer tab, usually `http://localhost:1234/v1`.
+4. Model name: exactly what the server calls it, for example `llama3.1`.
+5. Click **Test connection**. "Connection OK" means the model server answered.
+6. Check **Use AI analysis** and click **Analyze trades**.
+
+With **OpenAI** instead, the same roster context is sent to OpenAI so it can respond. Leave the panel locked if you do not want that.
 
 AI suggestions are decision support, not guarantees.
 
@@ -280,10 +300,10 @@ This repository is wired to `https://github.com/aresROX247/ESPN-trade-helper`.
 
 1. **Keep the project at the repository root.** GitHub only reads `.github/workflows/`, `SECURITY.md`, and `.github/ISSUE_TEMPLATE/` from the repository root, and `npm install` must run in the same folder as `package.json`. If the files are still nested inside a folder such as `ESPN-trade-helper-1.2/`, move them up to the root. Until then the **Validate** badge stays grey, because Actions cannot find the workflow.
 2. **Never commit private data.** `git status` must not list `league-data.json`, `.espn-browser-profile/`, or `ESPN Fantasy Importer.exe`. All three are already in `.gitignore`.
-3. **Tag a release** so the Windows launcher is built automatically and attached to the Releases page. The tag must match the `version` in `package.json` (currently `1.3.0`), or the release workflow stops on purpose:
+3. **Tag a release** so the Windows launcher is built automatically and attached to the Releases page. The tag must match the `version` in `package.json` (currently `1.4.0`), or the release workflow stops on purpose:
 
    ```bash
-   git tag v1.3.0
+   git tag v1.4.0
    git push --tags
    ```
 

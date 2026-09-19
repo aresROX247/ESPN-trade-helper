@@ -136,3 +136,21 @@ select { background: #0d1412; border: 1px solid var(--line); border-radius: 5px;
 @media (max-width: 900px) { .results { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); } }
 @media (max-width: 900px) { .trade-workspace { grid-template-columns: 1fr; } .waiver-sidebar { position: static; } }
 @media (max-width: 620px) { .shell { padding-top: 40px; width: min(100% - 28px, 540px); } h1 { font-size: 42px; } .panel { padding: 21px; } .panel-heading { display: block; } .secure-note { display: inline-block; margin-top: 15px; } .form-grid { grid-template-columns: 1fr; } label.wide { grid-column: auto; } .saved-item { align-items: start; flex-direction: column; } .saved-heading, .section-heading { align-items: start; flex-direction: column; } .league-summary { gap: 18px; justify-content: space-between; padding: 15px; } .league-summary strong { font-size: 15px; } .league-tools { align-items: stretch; flex-direction: column; } .league-tools button { margin-top: 0; } .trade-controls { align-items: stretch; flex-direction: column; } .trade-controls button { margin-top: 4px; } .trade-benefit-grid { grid-template-columns: 1fr; } .browser-import { align-items: stretch; flex-direction: column; } .browser-import button { min-width: 0; } .standing-row { grid-template-columns: 25px minmax(0, 1fr) 70px 65px; gap: 7px; font-size: 12px; } .player-facts, .player-stats { grid-template-columns: repeat(2, 1fr); } .results { grid-template-columns: 1fr; } .player-row { gap: 6px; grid-template-columns: 18px minmax(90px, 1fr) auto auto; } .roster-tags { align-items: end; flex-direction: column; gap: 3px; } .roster-metrics { min-width: 62px; } .ai-key-row { flex-direction: column; } .ai-actions { align-items: stretch; flex-direction: column; } }
+
+/* Fit breakdown bars + copy-offer button */
+.fit-breakdown span.fit-component { background: var(--surface-soft); border-radius: 4px; display: block; padding: 7px 8px; }
+.fit-breakdown .fit-component-head { display: flex; justify-content: space-between; }
+.fit-breakdown .fit-bar { background: rgba(255, 255, 255, 0.07); border-radius: 99px; display: block; height: 4px; margin-top: 6px; overflow: hidden; }
+.fit-breakdown .fit-bar-fill { border-radius: 99px; display: block; height: 100%; }
+.fit-breakdown .fit-bar-fill.pos { background: var(--accent); }
+.fit-breakdown .fit-bar-fill.neg { background: var(--danger); }
+.fit-breakdown .fit-bar-fill.zero { background: var(--subtle); }
+.copy-offer { background: var(--surface-soft); border: 1px solid var(--line); border-radius: 5px; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; margin: 12px 0 0; min-width: auto; padding: 7px 11px; }
+.copy-offer:hover { border-color: var(--accent); color: var(--accent); }
+.copy-offer.copied { border-color: var(--accent); color: var(--accent); }
+
+/* Local-model settings row in the AI panel */
+.ai-local-toggle { margin-top: 12px; }
+.ai-local-row { display: flex; gap: 8px; margin-top: 8px; }
+.ai-local-row input { flex: 1; }
+@media (max-width: 620px) { .ai-local-row { flex-direction: column; } }
